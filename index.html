@@ -149,6 +149,10 @@
                 </div>
                 <div style="height:12px"></div>
                 <div class="notice">
+                  <strong>Wyszukiwanie:</strong> możesz filtrować indeksy po treści, parafii i miejscowości.
+                </div>
+                <div style="height:12px"></div>
+                <div class="notice">
                   <strong>Rangi:</strong> administrator może tworzyć własne rangi i zmieniać je innym użytkownikom.
                 </div>
                 <div style="height:12px"></div>
@@ -190,10 +194,36 @@
           </div>
 
           <div id="indeksy" class="section">
+            <div class="card">
+              <div class="section-title">Wyszukiwanie indeksów</div>
+              <div class="search-grid">
+                <div>
+                  <label>Szukaj</label>
+                  <input id="searchQuery" placeholder="Imię, nazwisko, rok, akt, parafia..." />
+                </div>
+                <div>
+                  <label>Parafia</label>
+                  <select id="searchParish"></select>
+                </div>
+                <div>
+                  <label>Miejscowość</label>
+                  <input id="searchTown" placeholder="np. Kopyść" />
+                </div>
+                <div class="search-actions">
+                  <button class="secondary" type="button" id="clearSearch">Wyczyść filtry</button>
+                  <span class="helper">Dla administratora pojawi się też przycisk „Edytuj” przy każdym indeksie.</span>
+                </div>
+              </div>
+            </div>
+            <div style="height:14px"></div>
             <div id="indexCreateCard" class="card admin-only">
-              <div class="section-title">Dodaj indeks</div>
+              <div class="section-title">
+                <span>Dodaj indeks</span>
+                <span class="small" id="indexModeLabel">Tryb: dodawanie</span>
+              </div>
               <p class="sub">Każdy indeks zapisuje autora, a przycisk A pokazuje go po najechaniu myszką.</p>
               <form id="indexForm" class="form-grid">
+                <input type="hidden" id="indexEditingId" value="" />
                 <div>
                   <label>Parafia</label>
                   <select id="indexParish"></select>
@@ -227,7 +257,8 @@
                   <textarea id="indexInfo" placeholder="Wpisz więcej informacji o akcie."></textarea>
                 </div>
                 <div class="span-2 inline">
-                  <button class="primary" type="submit">Dodaj indeks</button>
+                  <button class="primary" type="submit" id="indexSubmitBtn">Dodaj indeks</button>
+                  <button class="secondary hidden" type="button" id="cancelEditBtn">Anuluj edycję</button>
                   <span class="helper">Przycisk „Skan” otworzy podany adres w nowej karcie.</span>
                 </div>
               </form>
