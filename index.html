@@ -145,11 +145,11 @@
               <div class="card">
                 <div class="section-title">Szybkie informacje</div>
                 <div class="notice">
-                  <strong>Zakres indeksu:</strong> rok, numer aktu, imię osoby, rodzice, miejscowość, dodatkowe informacje i skan.
+                  <strong>Zakres indeksu:</strong> rok, rodzaj aktu, numer aktu, imię osoby, rodzice, miejscowość, dodatkowe informacje i skan.
                 </div>
                 <div style="height:12px"></div>
                 <div class="notice">
-                  <strong>Wyszukiwanie:</strong> możesz filtrować indeksy po treści, parafii i miejscowości.
+                  <strong>Wyszukiwanie:</strong> możesz filtrować indeksy po treści, parafii, miejscowości i rodzaju aktu.
                 </div>
                 <div style="height:12px"></div>
                 <div class="notice">
@@ -209,6 +209,10 @@
                   <label>Miejscowość</label>
                   <input id="searchTown" placeholder="np. Kopyść" />
                 </div>
+                <div>
+                  <label>Rodzaj aktu</label>
+                  <select id="searchActType"></select>
+                </div>
                 <div class="search-actions">
                   <button class="secondary" type="button" id="clearSearch">Wyczyść filtry</button>
                   <span class="helper">Dla administratora pojawi się też przycisk „Edytuj” przy każdym indeksie.</span>
@@ -235,6 +239,10 @@
                 <div>
                   <label>Rok</label>
                   <input id="indexYear" type="number" placeholder="np. 1894" />
+                </div>
+                <div>
+                  <label>Rodzaj aktu</label>
+                  <select id="indexActType"></select>
                 </div>
                 <div>
                   <label>Numer aktu</label>
