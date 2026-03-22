@@ -1,6 +1,6 @@
-
-const STORAGE_KEY = 'genealogia_powiatu_laskiego_i_okolic_data_v3';
+const STORAGE_KEY = 'genealogia_powiatu_laskiego_i_okolic_data_v4';
 const LEGACY_KEYS = [
+  'genealogia_powiatu_laskiego_i_okolic_data_v3',
   'genealogia_powiatu_laskiego_i_okolic_data_v2',
   'genealogia_laski_demo_v1'
 ];
@@ -9,6 +9,8 @@ function uid() {
   if (window.crypto?.randomUUID) return crypto.randomUUID();
   return `id_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
+
+const ACT_TYPES = ['urodzenia', 'małżeństwa', 'zgonu'];
 
 const defaultData = {
   ranks: [
@@ -32,6 +34,7 @@ const defaultData = {
       parishName: 'Parafia św. Katarzyny',
       town: 'Łask',
       year: '1894',
+      actType: 'urodzenia',
       act: '12',
       person: 'Jan Kowalski',
       parents: 'Piotr i Maria',
@@ -52,11 +55,16 @@ const state = {
   activeSection: 'dashboard',
   authTab: 'login',
   editingIndexId: null,
-  search: { query: '', parishId: '', town: '' }
+  search: { query: '', parishId: '', town: '', actType: '' }
 };
 
 function clone(obj) {
   return JSON.parse(JSON.stringify(obj));
+}
+
+function normalizeActType(value) {
+  const cleaned = String(value || '').trim().toLowerCase();
+  return ACT_TYPES.includes(cleaned) ? cleaned : 'urodzenia';
 }
 
 function migrateData(data) {
@@ -93,6 +101,7 @@ function migrateData(data) {
     parishName: String(ix.parishName || '').trim(),
     town: String(ix.town || '').trim(),
     year: String(ix.year || '').trim(),
+    actType: normalizeActType(ix.actType || ix.type || ix.kind || (String(ix.info || '').toLowerCase().includes('małżeń') ? 'małżeństwa' : String(ix.info || '').toLowerCase().includes('zgon') ? 'zgonu' : 'urodzenia')),
     act: String(ix.act || '').trim(),
     person: String(ix.person || '').trim(),
     parents: String(ix.parents || '').trim(),
@@ -252,19 +261,26 @@ function addParish(name, town, desc) {
   renderAll();
 }
 
-function addOrUpdateIndex(form) {
-  const parishId = form.indexParish.value;
+function readIndexForm() {
+  const parishId = $('indexParish').value;
   const parish = state.data.parishes.find(p => p.id === parishId);
-  const payload = {
+  return {
     parishId,
     parishName: parish ? parish.name : '—',
-    town: form.indexTown.value.trim(),
-    year: form.indexYear.value.trim(),
-    act: form.indexAct.value.trim(),
-    person: form.indexPerson.value.trim(),
-    parents: form.indexParents.value.trim(),
-    info: form.indexInfo.value.trim(),
-    scan: form.indexScan.value.trim(),
+    town: $('indexTown').value.trim(),
+    year: $('indexYear').value.trim(),
+    actType: $('indexActType').value,
+    act: $('indexAct').value.trim(),
+    person: $('indexPerson').value.trim(),
+    parents: $('indexParents').value.trim(),
+    info: $('indexInfo').value.trim(),
+    scan: $('indexScan').value.trim()
+  };
+}
+
+function addOrUpdateIndex() {
+  const payload = {
+    ...readIndexForm(),
     updatedAt: Date.now()
   };
 
@@ -291,7 +307,8 @@ function addOrUpdateIndex(form) {
       ...payload,
       createdByUsername: state.currentUser?.username || '—',
       createdByDisplay: state.currentUser?.display || state.currentUser?.username || '—',
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      updatedAt: null
     });
   }
 
@@ -376,14 +393,16 @@ function getFilteredIndexes() {
   const q = state.search.query.trim().toLowerCase();
   const parishId = state.search.parishId;
   const town = state.search.town.trim().toLowerCase();
+  const actType = state.search.actType;
 
   return state.data.indexes.filter(ix => {
     const matchesQuery = !q || [
-      ix.year, ix.act, ix.person, ix.parents, ix.info, ix.town, ix.parishName, ix.createdByUsername, ix.createdByDisplay
+      ix.year, ix.act, ix.person, ix.parents, ix.info, ix.town, ix.parishName, ix.createdByUsername, ix.createdByDisplay, ix.actType
     ].some(v => String(v || '').toLowerCase().includes(q));
     const matchesParish = !parishId || ix.parishId === parishId;
     const matchesTown = !town || String(ix.town || '').toLowerCase().includes(town);
-    return matchesQuery && matchesParish && matchesTown;
+    const matchesType = !actType || ix.actType === actType;
+    return matchesQuery && matchesParish && matchesTown && matchesType;
   });
 }
 
@@ -460,6 +479,7 @@ function fillIndexForm(ix) {
   $('indexParish').value = ix.parishId || '';
   $('indexTown').value = ix.town || '';
   $('indexYear').value = ix.year || '';
+  $('indexActType').value = normalizeActType(ix.actType);
   $('indexAct').value = ix.act || '';
   $('indexPerson').value = ix.person || '';
   $('indexParents').value = ix.parents || '';
@@ -472,8 +492,13 @@ function fillIndexForm(ix) {
 function clearIndexForm() {
   $('indexForm').reset();
   $('indexParish').selectedIndex = 0;
+  $('indexActType').value = 'urodzenia';
   state.editingIndexId = null;
   renderIndexFormMode();
+}
+
+function actTypeLabel(type) {
+  return ({ urodzenia: 'Urodzenia', małżeństwa: 'Małżeństwa', zgonu: 'Zgonu' }[normalizeActType(type)]);
 }
 
 function renderIndexes() {
@@ -487,7 +512,7 @@ function renderIndexes() {
 
   const head = document.createElement('div');
   head.className = 'row head';
-  head.innerHTML = '<div>Rok</div><div>Numer aktu</div><div>Osoba</div><div>Rodzice</div><div>Miejscowość / info</div><div>Akcje</div>';
+  head.innerHTML = '<div>Rok</div><div>Rodzaj aktu</div><div>Numer aktu</div><div>Osoba</div><div>Rodzice</div><div>Miejscowość / info</div><div>Akcje</div>';
   table.appendChild(head);
 
   items.forEach(ix => {
@@ -496,7 +521,11 @@ function renderIndexes() {
     const author = ix.createdByDisplay || ix.createdByUsername || '—';
     const edited = ix.updatedAt ? `<div class="small">Edytowano: ${escapeHtml(formatDate(ix.updatedAt))}</div>` : '';
     row.innerHTML = `
-      <div><strong>${escapeHtml(ix.year || '—')}</strong><div class="small">${escapeHtml(ix.parishName || '—')}</div></div>
+      <div>
+        <strong>${escapeHtml(ix.year || '—')}</strong>
+        <div class="small">${escapeHtml(ix.parishName || '—')}</div>
+      </div>
+      <div>${escapeHtml(actTypeLabel(ix.actType))}</div>
       <div>${escapeHtml(ix.act || '—')}</div>
       <div>${escapeHtml(ix.person || '—')}</div>
       <div>${escapeHtml(ix.parents || '—')}</div>
@@ -577,6 +606,11 @@ function renderSelects() {
     parishSelect.appendChild(opt);
   });
 
+  const actSelect = $('indexActType');
+  if (actSelect) {
+    actSelect.innerHTML = ACT_TYPES.map(type => `<option value="${type}">${actTypeLabel(type)}</option>`).join('');
+  }
+
   const searchParish = $('searchParish');
   if (searchParish) {
     searchParish.innerHTML = '<option value="">Wszystkie parafie</option>';
@@ -587,6 +621,11 @@ function renderSelects() {
       if (p.id === state.search.parishId) opt.selected = true;
       searchParish.appendChild(opt);
     });
+  }
+
+  const searchActType = $('searchActType');
+  if (searchActType) {
+    searchActType.innerHTML = '<option value="">Wszystkie rodzaje</option>' + ACT_TYPES.map(type => `<option value="${type}" ${state.search.actType === type ? 'selected' : ''}>${actTypeLabel(type)}</option>`).join('');
   }
 
   const rankSelect = $('newUserRank');
@@ -617,6 +656,7 @@ function renderRecent() {
           <h3>${escapeHtml(ix.person || '—')}</h3>
           <div class="chips">
             <span class="chip">${escapeHtml(ix.year || '—')}</span>
+            <span class="chip">${escapeHtml(actTypeLabel(ix.actType))}</span>
             <span class="chip">Akt ${escapeHtml(ix.act || '—')}</span>
             <span class="chip">${escapeHtml(ix.parishName || '—')}</span>
           </div>
@@ -705,6 +745,7 @@ $('quickAddExample').addEventListener('click', () => {
     parishName: parish?.name || 'Parafia przykładowa',
     town: parish?.town || '—',
     year: '1902',
+    actType: 'urodzenia',
     act: String(Math.floor(Math.random() * 90) + 1),
     person: 'Przykładowa Osoba',
     parents: 'Ojciec i Matka',
@@ -771,9 +812,11 @@ $('indexForm').addEventListener('submit', (e) => {
   e.preventDefault();
   if (!canAdmin()) return alert('Brak uprawnień.');
   if (!$('indexParish').value) return alert('Wybierz parafię.');
-  addOrUpdateIndex(e.target);
+  if (!ACT_TYPES.includes($('indexActType').value)) return alert('Wybierz rodzaj aktu.');
+  addOrUpdateIndex();
   e.target.reset();
   $('indexParish').selectedIndex = 0;
+  $('indexActType').value = 'urodzenia';
   clearIndexForm();
 });
 
@@ -816,11 +859,16 @@ $('searchParish').addEventListener('change', (e) => {
   state.search.parishId = e.target.value;
   renderIndexes();
 });
+$('searchActType').addEventListener('change', (e) => {
+  state.search.actType = e.target.value;
+  renderIndexes();
+});
 $('clearSearch').addEventListener('click', () => {
-  state.search = { query: '', parishId: '', town: '' };
+  state.search = { query: '', parishId: '', town: '', actType: '' };
   $('searchQuery').value = '';
   $('searchTown').value = '';
   $('searchParish').value = '';
+  $('searchActType').value = '';
   renderIndexes();
 });
 
