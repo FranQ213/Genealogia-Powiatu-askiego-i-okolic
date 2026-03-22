@@ -7,148 +7,303 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="bg"></div>
-
-  <header class="topbar">
-    <div>
-      <p class="eyebrow">Archiwum rodzinne i indeksy metrykalne</p>
-      <h1>Genealogia Powiatu Łaskiego i okolic</h1>
-      <p class="subtitle">Przeglądaj parafie, indeksy i skany aktów. Panel administratora działa w wersji statycznej pod GitHub Pages.</p>
-    </div>
-    <div class="top-actions">
-      <button id="loginBtn" class="btn primary">Zaloguj</button>
-      <button id="logoutBtn" class="btn ghost hidden">Wyloguj</button>
-    </div>
-  </header>
-
-  <main class="layout">
-    <section class="hero card">
-      <div>
-        <h2>Witaj na stronie genealogicznej</h2>
-        <p>
-          To miejsce do dodawania parafii, tworzenia rang i zapisywania indeksów z podstawowymi danymi:
-          rok, numer aktu, imię i nazwisko, rodzice, dodatkowe informacje oraz link do skanu aktu.
-        </p>
-        <div class="hero-tags">
-          <span>GitHub Pages</span>
-          <span>Indeksy</span>
-          <span>Parafie</span>
-          <span>Rangi</span>
-        </div>
-      </div>
-      <aside class="login-panel card soft">
-        <h3>Logowanie</h3>
-        <p class="muted">Konto administratora działa lokalnie w przeglądarce.</p>
-        <form id="loginForm" class="stack">
-          <label>
-            Login
-            <input id="username" type="text" placeholder="np. KrawczykP" autocomplete="username" />
-          </label>
-          <label>
-            Hasło
-            <input id="password" type="password" placeholder="Hasło" autocomplete="current-password" />
-          </label>
-          <button class="btn primary full" type="submit">Zaloguj się</button>
-        </form>
-        <p id="loginMessage" class="message"></p>
-      </aside>
-    </section>
-
-    <section class="grid-2">
-      <article class="card">
-        <div class="section-head">
-          <h3>Parafie</h3>
-          <span id="parishCount" class="pill"></span>
-        </div>
-        <div id="parishList" class="list"></div>
-      </article>
-
-      <article class="card">
-        <div class="section-head">
-          <h3>Rangi</h3>
-          <span id="rankCount" class="pill"></span>
-        </div>
-        <div id="rankList" class="list"></div>
-      </article>
-    </section>
-
-    <section id="adminPanel" class="admin hidden">
-      <div class="section-head">
-        <h2>Panel Administratora</h2>
-        <span class="pill admin-pill">Administrator</span>
-      </div>
-
-      <div class="grid-3">
-        <article class="card">
-          <h3>Dodaj rangę</h3>
-          <form id="rankForm" class="stack">
-            <label>Nazwa rangi<input id="rankName" type="text" placeholder="np. Sympatyk" /></label>
-            <label>Opis<input id="rankDescription" type="text" placeholder="np. Użytkownik wspierający projekt" /></label>
-            <button class="btn primary" type="submit">Utwórz rangę</button>
-          </form>
-        </article>
-
-        <article class="card">
-          <h3>Dodaj parafię</h3>
-          <form id="parishForm" class="stack">
-            <label>Nazwa parafii<input id="parishName" type="text" placeholder="np. Łask" /></label>
-            <label>Opis<input id="parishDescription" type="text" placeholder="Krótki opis parafii" /></label>
-            <button class="btn primary" type="submit">Utwórz parafię</button>
-          </form>
-        </article>
-
-        <article class="card">
-          <h3>Dodaj indeks</h3>
-          <form id="indexForm" class="stack">
-            <label>Parafia
-              <select id="indexParish"></select>
-            </label>
-            <label>Ranga / kategoria
-              <select id="indexRank"></select>
-            </label>
-            <label>Rok<input id="indexYear" type="number" placeholder="np. 1892" /></label>
-            <label>Numer aktu<input id="indexAct" type="text" placeholder="np. 14" /></label>
-            <label>Imię osoby<input id="indexPerson" type="text" placeholder="np. Jan Kowalski" /></label>
-            <label>Rodzice<input id="indexParents" type="text" placeholder="np. Piotr i Marianna" /></label>
-            <label>Dodatkowe informacje<input id="indexInfo" type="text" placeholder="np. chrzest, wieś, świadkowie" /></label>
-            <label>Link do skanu<input id="indexScan" type="url" placeholder="https://..." /></label>
-            <button class="btn primary" type="submit">Dodaj indeks</button>
-          </form>
-        </article>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="section-head">
-        <h2>Indeksy</h2>
-        <span id="indexCount" class="pill"></span>
-      </div>
-      <div class="toolbar">
-        <input id="searchInput" type="search" placeholder="Szukaj po roku, imieniu, parafii lub akcie..." />
-        <button id="clearSearch" class="btn ghost" type="button">Wyczyść</button>
-      </div>
-      <div id="indexList" class="index-grid"></div>
-      <p class="muted small">Kliknięcie karty indeksu otwiera skan aktu, a przycisk „Skan” prowadzi bezpośrednio do dodanego adresu.</p>
-    </section>
-  </main>
-
-  <template id="indexTemplate">
-    <article class="index-card card soft">
-      <div class="index-top">
+  <div class="login-overlay" id="authOverlay">
+    <div class="auth-shell">
+      <section class="auth-left">
         <div>
-          <p class="index-meta"></p>
-          <h4 class="index-title"></h4>
+          <div class="login-badges">
+            <span class="pill">Genealogia Powiatu Łaskiego i okolic</span>
+            <span class="pill">Motyw z Twojego zdjęcia</span>
+          </div>
+          <h1>Strona do parafii, indeksów i skanów aktów</h1>
+          <p>
+            Zaloguj się do panelu albo załóż zwykłe konto. Administrator może tworzyć rangi,
+            parafie, indeksy oraz zmieniać rangi innym użytkownikom.
+          </p>
         </div>
-        <span class="index-badge"></span>
-      </div>
-      <p class="index-parents"></p>
-      <p class="index-info muted"></p>
-      <div class="index-actions">
-        <a class="btn primary scan-link" target="_blank" rel="noopener">Skan</a>
-        <button class="btn ghost delete-index hidden" type="button">Usuń</button>
-      </div>
-    </article>
-  </template>
+        <div class="notice">
+          <strong>Konto administratora:</strong> KrawczykP / MuchaUcha25!!<br />
+          Dane są zapisywane lokalnie w przeglądarce, więc nie znikają po odświeżeniu.
+        </div>
+      </section>
+
+      <section class="auth-card">
+        <div class="tabs auth-tabs">
+          <button class="active" data-auth-tab="login">Logowanie</button>
+          <button data-auth-tab="register">Zarejestruj się</button>
+        </div>
+
+        <div id="loginPane" class="auth-pane active">
+          <h2>Logowanie</h2>
+          <div class="hint">Wpisz nazwę użytkownika i hasło.</div>
+          <label for="loginUser">Nazwa użytkownika</label>
+          <input id="loginUser" autocomplete="username" placeholder="np. KrawczykP" />
+          <label for="loginPass">Hasło</label>
+          <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••••••" />
+          <div class="btnrow">
+            <button class="primary" id="loginBtn">Zaloguj</button>
+            <button class="secondary" id="fillAdmin">Wstaw dane admina</button>
+          </div>
+        </div>
+
+        <div id="registerPane" class="auth-pane">
+          <h2>Rejestracja</h2>
+          <div class="hint">Rejestracja tworzy tylko zwykłe konto. Rangi zmienia wyłącznie administrator.</div>
+          <label for="regUser">Nazwa użytkownika</label>
+          <input id="regUser" autocomplete="username" placeholder="np. JanKowalski" />
+          <label for="regDisplay">Widoczna nazwa</label>
+          <input id="regDisplay" placeholder="np. Jan Kowalski" />
+          <label for="regPass">Hasło</label>
+          <input id="regPass" type="password" autocomplete="new-password" placeholder="Ustal hasło" />
+          <div class="btnrow">
+            <button class="primary" id="registerBtn">Utwórz konto</button>
+          </div>
+          <div class="footer-note">Po rejestracji konto otrzymuje rangę „Zwykłe konto”.</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="shell hidden" id="appShell">
+      <header>
+        <div class="brand">
+          <h1>Genealogia Powiatu Łaskiego i okolic</h1>
+          <p>Serwis do porządkowania parafii, indeksów metrykalnych, rang użytkowników i skanów aktów.</p>
+        </div>
+        <div class="pillrow">
+          <span class="pill" id="pillUser">Gość</span>
+          <span class="pill" id="pillRole">Brak roli</span>
+          <span class="pill">Kolor: #B6D4EE</span>
+        </div>
+      </header>
+
+      <main>
+        <aside>
+          <div class="panel">
+            <div class="topline">
+              <div class="userbar">
+                <div class="avatar" id="avatar">G</div>
+                <div>
+                  <div class="user-name" id="sidebarUser">Gość</div>
+                  <div class="small" id="sidebarInfo">Zaloguj się, aby zarządzać danymi</div>
+                </div>
+              </div>
+              <span class="badge-role" id="sidebarRole">Brak</span>
+            </div>
+
+            <div class="meta-grid">
+              <div class="mini"><div class="k">Parafie</div><div class="v" id="statParishSide">0</div></div>
+              <div class="mini"><div class="k">Indeksy</div><div class="v" id="statIndexSide">0</div></div>
+            </div>
+
+            <div class="nav">
+              <button class="active" data-section="dashboard">Panel główny</button>
+              <button data-section="parafie">Parafie</button>
+              <button data-section="indeksy">Indeksy</button>
+              <button data-section="rangi">Rangi</button>
+              <button data-section="uzytkownicy">Użytkownicy</button>
+            </div>
+
+            <div class="sidebar-block">
+              <button class="danger" id="logoutBtn" style="width:100%">Wyloguj</button>
+            </div>
+
+            <div class="sidebar-block notice">
+              <strong>Wskazówka:</strong> przy indeksie przycisk <strong>Skan</strong> otwiera skan aktu,
+              a przycisk <strong>A</strong> pokazuje autora wpisu po najechaniu myszką.
+            </div>
+          </div>
+        </aside>
+
+        <section class="content">
+          <div class="card hero">
+            <div>
+              <h2>Witamy w systemie genealogicznym</h2>
+              <p>Administrator może zarządzać rangami, parafiami, indeksami i użytkownikami.</p>
+            </div>
+            <div class="actions">
+              <button class="secondary" id="exportBtn">Eksport kopii</button>
+              <button class="secondary" id="resetDemo">Reset danych demo</button>
+              <button class="primary" id="quickAddExample">Dodaj przykładowy indeks</button>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><div class="label">Zalogowany</div><div class="num" id="statUser">0</div></div>
+            <div class="stat"><div class="label">Rangi</div><div class="num" id="statRanks">0</div></div>
+            <div class="stat"><div class="label">Parafie</div><div class="num" id="statParish">0</div></div>
+            <div class="stat"><div class="label">Indeksy</div><div class="num" id="statIndex">0</div></div>
+          </div>
+
+          <div id="dashboard" class="section active">
+            <div class="grid">
+              <div class="card">
+                <div class="section-title">Ostatnie indeksy <span class="small" id="lastUpdate">—</span></div>
+                <div class="list" id="recentIndexes"></div>
+              </div>
+              <div class="card">
+                <div class="section-title">Szybkie informacje</div>
+                <div class="notice">
+                  <strong>Zakres indeksu:</strong> rok, numer aktu, imię osoby, rodzice, miejscowość, dodatkowe informacje i skan.
+                </div>
+                <div style="height:12px"></div>
+                <div class="notice">
+                  <strong>Rangi:</strong> administrator może tworzyć własne rangi i zmieniać je innym użytkownikom.
+                </div>
+                <div style="height:12px"></div>
+                <div class="notice">
+                  <strong>Zapisywanie:</strong> wszystko zapisuje się w localStorage, więc po aktualizacjach strony dane zostają w przeglądarce.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="parafie" class="section">
+            <div id="parishCreateCard" class="card admin-only">
+              <div class="section-title">Tworzenie parafii</div>
+              <p class="sub">Dodawaj parafie z miejscowością i opisem.</p>
+              <form id="parishForm" class="form-grid">
+                <div>
+                  <label>Nazwa parafii</label>
+                  <input id="parishName" placeholder="np. Parafia św. ..." />
+                </div>
+                <div>
+                  <label>Miejscowość</label>
+                  <input id="parishTown" placeholder="np. Łask" />
+                </div>
+                <div class="span-2">
+                  <label>Opis</label>
+                  <textarea id="parishDesc" placeholder="Dodaj informacje o księgach, latach i zasobie."></textarea>
+                </div>
+                <div class="span-2 inline">
+                  <button class="primary" type="submit">Dodaj parafię</button>
+                  <span class="helper" id="parishHint">Administrator może tworzyć i edytować parafie.</span>
+                </div>
+              </form>
+            </div>
+            <div style="height:14px"></div>
+            <div class="card">
+              <div class="section-title">Lista parafii</div>
+              <div class="list" id="parishList"></div>
+            </div>
+          </div>
+
+          <div id="indeksy" class="section">
+            <div id="indexCreateCard" class="card admin-only">
+              <div class="section-title">Dodaj indeks</div>
+              <p class="sub">Każdy indeks zapisuje autora, a przycisk A pokazuje go po najechaniu myszką.</p>
+              <form id="indexForm" class="form-grid">
+                <div>
+                  <label>Parafia</label>
+                  <select id="indexParish"></select>
+                </div>
+                <div>
+                  <label>Miejscowość</label>
+                  <input id="indexTown" placeholder="np. Kopyść" />
+                </div>
+                <div>
+                  <label>Rok</label>
+                  <input id="indexYear" type="number" placeholder="np. 1894" />
+                </div>
+                <div>
+                  <label>Numer aktu</label>
+                  <input id="indexAct" placeholder="np. 12" />
+                </div>
+                <div>
+                  <label>Imię osoby</label>
+                  <input id="indexPerson" placeholder="np. Jan Kowalski" />
+                </div>
+                <div>
+                  <label>Rodzice</label>
+                  <input id="indexParents" placeholder="np. Piotr i Maria" />
+                </div>
+                <div>
+                  <label>Skan aktu (adres URL)</label>
+                  <input id="indexScan" placeholder="https://..." />
+                </div>
+                <div class="span-2">
+                  <label>Dodatkowe informacje</label>
+                  <textarea id="indexInfo" placeholder="Wpisz więcej informacji o akcie."></textarea>
+                </div>
+                <div class="span-2 inline">
+                  <button class="primary" type="submit">Dodaj indeks</button>
+                  <span class="helper">Przycisk „Skan” otworzy podany adres w nowej karcie.</span>
+                </div>
+              </form>
+            </div>
+            <div style="height:14px"></div>
+            <div class="card">
+              <div class="section-title">Wszystkie indeksy</div>
+              <div class="tableish" id="indexTable"></div>
+            </div>
+          </div>
+
+          <div id="rangi" class="section">
+            <div class="grid">
+              <div id="rankCreateCard" class="card admin-only">
+                <div class="section-title">Tworzenie rang</div>
+                <p class="sub">Możesz dodać np. Sympatyk, Genealog, Weryfikator, Moderator.</p>
+                <form id="rankForm" class="compact-form">
+                  <div class="full">
+                    <label>Nazwa rangi</label>
+                    <input id="rankName" placeholder="np. Sympatyk" />
+                  </div>
+                  <div class="full">
+                    <label>Opis</label>
+                    <textarea id="rankDesc" placeholder="Krótki opis uprawnień lub znaczenia rangi."></textarea>
+                  </div>
+                  <div class="full inline">
+                    <button class="primary" type="submit">Dodaj rangę</button>
+                    <span class="helper">Rangi pojawiają się na liście użytkowników.</span>
+                  </div>
+                </form>
+              </div>
+              <div class="card">
+                <div class="section-title">Lista rang</div>
+                <div class="list" id="rankList"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="uzytkownicy" class="section">
+            <div class="grid">
+              <div id="userCreateCard" class="card admin-only">
+                <div class="section-title">Tworzenie użytkowników</div>
+                <p class="sub">Administrator może tworzyć użytkowników i ustawiać im rangę.</p>
+                <form id="userForm" class="form-grid">
+                  <div>
+                    <label>Nazwa użytkownika</label>
+                    <input id="newUserName" placeholder="np. NowyUzytkownik" />
+                  </div>
+                  <div>
+                    <label>Hasło</label>
+                    <input id="newUserPass" placeholder="Ustal hasło" />
+                  </div>
+                  <div>
+                    <label>Ranga</label>
+                    <select id="newUserRank"></select>
+                  </div>
+                  <div>
+                    <label>Widoczna nazwa</label>
+                    <input id="newUserDisplay" placeholder="np. Jan Nowak" />
+                  </div>
+                  <div class="span-2 inline">
+                    <button class="primary" type="submit">Dodaj użytkownika</button>
+                    <span class="helper">Rejestracja zwykłego konta jest dostępna wyżej na ekranie logowania.</span>
+                  </div>
+                </form>
+              </div>
+              <div class="card">
+                <div class="section-title">Lista użytkowników</div>
+                <div class="list" id="userList"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>
