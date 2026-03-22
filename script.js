@@ -1,5 +1,7 @@
-const STORAGE_KEY = 'genealogia_powiatu_laskiego_i_okolic_data_v2';
+
+const STORAGE_KEY = 'genealogia_powiatu_laskiego_i_okolic_data_v3';
 const LEGACY_KEYS = [
+  'genealogia_powiatu_laskiego_i_okolic_data_v2',
   'genealogia_laski_demo_v1'
 ];
 
@@ -36,7 +38,9 @@ const defaultData = {
       info: 'Akt urodzenia, zapis do sprawdzenia i doprecyzowania.',
       scan: 'https://example.com',
       createdByUsername: 'KrawczykP',
-      createdByDisplay: 'KrawczykP'
+      createdByDisplay: 'KrawczykP',
+      createdAt: Date.now(),
+      updatedAt: null
     }
   ]
 };
@@ -46,7 +50,9 @@ const state = {
   data: loadData(),
   currentUser: null,
   activeSection: 'dashboard',
-  authTab: 'login'
+  authTab: 'login',
+  editingIndexId: null,
+  search: { query: '', parishId: '', town: '' }
 };
 
 function clone(obj) {
@@ -57,10 +63,10 @@ function migrateData(data) {
   const next = clone(defaultData);
   const src = data && typeof data === 'object' ? data : {};
 
-  next.ranks = Array.isArray(src.ranks) && src.ranks.length ? src.ranks : next.ranks;
-  next.users = Array.isArray(src.users) && src.users.length ? src.users : next.users;
-  next.parishes = Array.isArray(src.parishes) && src.parishes.length ? src.parishes : next.parishes;
-  next.indexes = Array.isArray(src.indexes) && src.indexes.length ? src.indexes : next.indexes;
+  if (Array.isArray(src.ranks) && src.ranks.length) next.ranks = src.ranks;
+  if (Array.isArray(src.users) && src.users.length) next.users = src.users;
+  if (Array.isArray(src.parishes) && src.parishes.length) next.parishes = src.parishes;
+  if (Array.isArray(src.indexes) && src.indexes.length) next.indexes = src.indexes;
 
   if (!next.ranks.some(r => r.name === 'Zwykłe konto')) {
     next.ranks.push({ id: uid(), name: 'Zwykłe konto', desc: 'Konto z dostępem do przeglądania i własnego profilu.' });
@@ -93,15 +99,15 @@ function migrateData(data) {
     info: String(ix.info || '').trim(),
     scan: String(ix.scan || '').trim(),
     createdByUsername: String(ix.createdByUsername || ix.author || '').trim(),
-    createdByDisplay: String(ix.createdByDisplay || ix.createdByUsername || ix.author || '').trim()
+    createdByDisplay: String(ix.createdByDisplay || ix.createdByUsername || ix.author || '').trim(),
+    createdAt: typeof ix.createdAt === 'number' ? ix.createdAt : Date.now(),
+    updatedAt: typeof ix.updatedAt === 'number' ? ix.updatedAt : null
   }));
 
-  // Ensure admin exists
   if (!next.users.some(u => u.username === 'KrawczykP')) {
     next.users.unshift({ id: uid(), username: 'KrawczykP', password: 'MuchaUcha25!!', display: 'KrawczykP', rank: 'Administrator' });
   }
 
-  // Ensure at least one admin rank exists
   if (!next.ranks.some(r => r.name === 'Administrator')) {
     next.ranks.unshift({ id: uid(), name: 'Administrator', desc: 'Pełne uprawnienia do zarządzania systemem.' });
   }
@@ -145,11 +151,11 @@ function initials(text) {
 }
 
 function canAdmin() {
-  return state.currentUser && state.currentUser.rank === 'Administrator';
+  return !!(state.currentUser && state.currentUser.rank === 'Administrator');
 }
 
-function formatDate() {
-  return new Date().toLocaleString('pl-PL', { dateStyle: 'full', timeStyle: 'short' });
+function formatDate(ts = Date.now()) {
+  return new Date(ts).toLocaleString('pl-PL', { dateStyle: 'full', timeStyle: 'short' });
 }
 
 function escapeHtml(str) {
@@ -246,11 +252,10 @@ function addParish(name, town, desc) {
   renderAll();
 }
 
-function addIndex(form) {
+function addOrUpdateIndex(form) {
   const parishId = form.indexParish.value;
   const parish = state.data.parishes.find(p => p.id === parishId);
-  state.data.indexes.unshift({
-    id: uid(),
+  const payload = {
     parishId,
     parishName: parish ? parish.name : '—',
     town: form.indexTown.value.trim(),
@@ -260,11 +265,39 @@ function addIndex(form) {
     parents: form.indexParents.value.trim(),
     info: form.indexInfo.value.trim(),
     scan: form.indexScan.value.trim(),
-    createdByUsername: state.currentUser?.username || '—',
-    createdByDisplay: state.currentUser?.display || state.currentUser?.username || '—'
-  });
+    updatedAt: Date.now()
+  };
+
+  if (state.editingIndexId) {
+    const idx = state.data.indexes.findIndex(ix => ix.id === state.editingIndexId);
+    if (idx === -1) {
+      state.editingIndexId = null;
+      alert('Nie znaleziono indeksu do edycji.');
+      return;
+    }
+    const current = state.data.indexes[idx];
+    state.data.indexes[idx] = {
+      ...current,
+      ...payload,
+      id: current.id,
+      createdByUsername: current.createdByUsername || state.currentUser?.username || '—',
+      createdByDisplay: current.createdByDisplay || state.currentUser?.display || state.currentUser?.username || '—',
+      createdAt: current.createdAt || Date.now()
+    };
+    state.editingIndexId = null;
+  } else {
+    state.data.indexes.unshift({
+      id: uid(),
+      ...payload,
+      createdByUsername: state.currentUser?.username || '—',
+      createdByDisplay: state.currentUser?.display || state.currentUser?.username || '—',
+      createdAt: Date.now()
+    });
+  }
+
   persist();
   renderAll();
+  renderIndexFormMode();
 }
 
 function addRank(name, desc) {
@@ -288,8 +321,12 @@ function addUser(username, password, rank, display) {
 function deleteItem(type, id) {
   if (!confirm('Usunąć ten element?')) return;
   state.data[type] = state.data[type].filter(x => x.id !== id);
+  if (type === 'indexes' && state.editingIndexId === id) {
+    state.editingIndexId = null;
+  }
   persist();
   renderAll();
+  renderIndexFormMode();
 }
 
 function updateUserRank(userId, rank) {
@@ -333,6 +370,21 @@ function renderSideStats() {
   $('statIndex').textContent = state.data.indexes.length;
   $('statParishSide').textContent = state.data.parishes.length;
   $('statIndexSide').textContent = state.data.indexes.length;
+}
+
+function getFilteredIndexes() {
+  const q = state.search.query.trim().toLowerCase();
+  const parishId = state.search.parishId;
+  const town = state.search.town.trim().toLowerCase();
+
+  return state.data.indexes.filter(ix => {
+    const matchesQuery = !q || [
+      ix.year, ix.act, ix.person, ix.parents, ix.info, ix.town, ix.parishName, ix.createdByUsername, ix.createdByDisplay
+    ].some(v => String(v || '').toLowerCase().includes(q));
+    const matchesParish = !parishId || ix.parishId === parishId;
+    const matchesTown = !town || String(ix.town || '').toLowerCase().includes(town);
+    return matchesQuery && matchesParish && matchesTown;
+  });
 }
 
 function renderRanks() {
@@ -390,11 +442,46 @@ function renderParishes() {
   });
 }
 
+function renderIndexFormMode() {
+  const label = $('indexModeLabel');
+  const submit = $('indexSubmitBtn');
+  const cancel = $('cancelEditBtn');
+  const hidden = $('indexEditingId');
+  if (!label || !submit || !cancel || !hidden) return;
+  const isEditing = !!state.editingIndexId;
+  hidden.value = state.editingIndexId || '';
+  label.textContent = isEditing ? 'Tryb: edycja indeksu' : 'Tryb: dodawanie';
+  submit.textContent = isEditing ? 'Zapisz zmiany' : 'Dodaj indeks';
+  cancel.classList.toggle('hidden', !isEditing);
+}
+
+function fillIndexForm(ix) {
+  $('indexEditingId').value = ix.id;
+  $('indexParish').value = ix.parishId || '';
+  $('indexTown').value = ix.town || '';
+  $('indexYear').value = ix.year || '';
+  $('indexAct').value = ix.act || '';
+  $('indexPerson').value = ix.person || '';
+  $('indexParents').value = ix.parents || '';
+  $('indexScan').value = ix.scan || '';
+  $('indexInfo').value = ix.info || '';
+  state.editingIndexId = ix.id;
+  renderIndexFormMode();
+}
+
+function clearIndexForm() {
+  $('indexForm').reset();
+  $('indexParish').selectedIndex = 0;
+  state.editingIndexId = null;
+  renderIndexFormMode();
+}
+
 function renderIndexes() {
   const table = $('indexTable');
   table.innerHTML = '';
-  if (!state.data.indexes.length) {
-    table.innerHTML = '<div class="empty">Brak indeksów.</div>';
+  const items = getFilteredIndexes();
+  if (!items.length) {
+    table.innerHTML = '<div class="empty">Brak indeksów dla wybranych filtrów.</div>';
     return;
   }
 
@@ -403,10 +490,11 @@ function renderIndexes() {
   head.innerHTML = '<div>Rok</div><div>Numer aktu</div><div>Osoba</div><div>Rodzice</div><div>Miejscowość / info</div><div>Akcje</div>';
   table.appendChild(head);
 
-  state.data.indexes.forEach(ix => {
+  items.forEach(ix => {
     const row = document.createElement('div');
     row.className = 'row';
     const author = ix.createdByDisplay || ix.createdByUsername || '—';
+    const edited = ix.updatedAt ? `<div class="small">Edytowano: ${escapeHtml(formatDate(ix.updatedAt))}</div>` : '';
     row.innerHTML = `
       <div><strong>${escapeHtml(ix.year || '—')}</strong><div class="small">${escapeHtml(ix.parishName || '—')}</div></div>
       <div>${escapeHtml(ix.act || '—')}</div>
@@ -415,10 +503,12 @@ function renderIndexes() {
       <div>
         <div><strong>${escapeHtml(ix.town || '—')}</strong></div>
         <div class="small">${escapeHtml(ix.info || '—')}</div>
+        ${edited}
       </div>
       <div class="actions">
         <button class="secondary" data-scan="${escapeAttr(ix.scan || '')}">Skan</button>
         <button class="ghost" title="Autor: ${escapeAttr(author)}">A</button>
+        ${canAdmin() ? `<button class="secondary" data-edit-index="${ix.id}">Edytuj</button>` : ''}
         ${canAdmin() ? `<button class="danger" data-del="indexes" data-id="${ix.id}">Usuń</button>` : ''}
       </div>
     `;
@@ -464,7 +554,7 @@ function renderUsers() {
       row.innerHTML = `
         <div style="min-width:260px;flex:1">
           <label class="small">Zmień rangę${isSelf ? ' (Twoje konto)' : ''}</label>
-          <select ${isAdminUser && !isSelf ? '' : ''} data-rank-user="${u.id}" ${isAdminUser && isSelf ? 'disabled' : ''}>
+          <select data-rank-user="${u.id}" ${isAdminUser && isSelf ? 'disabled' : ''}>
             ${userRanks.map(r => `<option value="${escapeAttr(r)}" ${r === u.rank ? 'selected' : ''}>${escapeHtml(r)}</option>`).join('')}
           </select>
         </div>
@@ -486,6 +576,18 @@ function renderSelects() {
     opt.textContent = `${p.name} — ${p.town || ''}`;
     parishSelect.appendChild(opt);
   });
+
+  const searchParish = $('searchParish');
+  if (searchParish) {
+    searchParish.innerHTML = '<option value="">Wszystkie parafie</option>';
+    state.data.parishes.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = `${p.name} — ${p.town || ''}`;
+      if (p.id === state.search.parishId) opt.selected = true;
+      searchParish.appendChild(opt);
+    });
+  }
 
   const rankSelect = $('newUserRank');
   rankSelect.innerHTML = '';
@@ -539,11 +641,13 @@ function updateAdminVisibility() {
   $('quickAddExample').classList.toggle('hidden', !canAdmin());
   $('exportBtn').classList.toggle('hidden', !state.currentUser);
 
-  if (!canAdmin()) {
-    $('parishHint').textContent = 'Tylko administrator może tworzyć i edytować parafie.';
-  } else {
-    $('parishHint').textContent = 'Administrator może tworzyć i edytować parafie.';
+  if ($('parishHint')) {
+    $('parishHint').textContent = canAdmin()
+      ? 'Administrator może tworzyć i edytować parafie.'
+      : 'Tylko administrator może tworzyć i edytować parafie.';
   }
+
+  renderIndexFormMode();
 }
 
 function renderAll() {
@@ -557,13 +661,11 @@ function renderAll() {
   updateAdminVisibility();
 }
 
-// Auth tabs
 $('authOverlay').addEventListener('click', (e) => {
   const tab = e.target.closest('[data-auth-tab]');
   if (tab) setAuthTab(tab.dataset.authTab);
 });
 
-// Login / register events
 $('loginBtn').addEventListener('click', () => login($('loginUser').value.trim(), $('loginPass').value));
 $('fillAdmin').addEventListener('click', () => {
   $('loginUser').value = 'KrawczykP';
@@ -588,7 +690,9 @@ $('resetDemo').addEventListener('click', () => {
   state.data = clone(defaultData);
   persist();
   if (state.currentUser && !state.data.users.some(u => u.username === state.currentUser.username)) state.currentUser = null;
+  state.editingIndexId = null;
   renderAll();
+  renderIndexFormMode();
   if (!state.currentUser) showAuth();
 });
 
@@ -607,7 +711,9 @@ $('quickAddExample').addEventListener('click', () => {
     info: 'Przykładowy wpis dodany jednym kliknięciem.',
     scan: 'https://example.com',
     createdByUsername: state.currentUser?.username || '—',
-    createdByDisplay: state.currentUser?.display || state.currentUser?.username || '—'
+    createdByDisplay: state.currentUser?.display || state.currentUser?.username || '—',
+    createdAt: Date.now(),
+    updatedAt: null
   });
   persist();
   renderAll();
@@ -628,6 +734,17 @@ document.addEventListener('click', (e) => {
 
   const scan = e.target.closest('[data-scan]');
   if (scan) openScan(scan.dataset.scan);
+
+  const edit = e.target.closest('[data-edit-index]');
+  if (edit) {
+    if (!canAdmin()) return alert('Brak uprawnień.');
+    const ix = state.data.indexes.find(item => item.id === edit.dataset.editIndex);
+    if (!ix) return alert('Nie znaleziono indeksu.');
+    fillIndexForm(ix);
+    setSection('indeksy');
+    $('indexTown').focus();
+    return;
+  }
 
   const saveRank = e.target.closest('[data-save-rank]');
   if (saveRank) {
@@ -654,9 +771,14 @@ $('indexForm').addEventListener('submit', (e) => {
   e.preventDefault();
   if (!canAdmin()) return alert('Brak uprawnień.');
   if (!$('indexParish').value) return alert('Wybierz parafię.');
-  addIndex(e.target);
+  addOrUpdateIndex(e.target);
   e.target.reset();
   $('indexParish').selectedIndex = 0;
+  clearIndexForm();
+});
+
+$('cancelEditBtn').addEventListener('click', () => {
+  clearIndexForm();
 });
 
 $('rankForm').addEventListener('submit', (e) => {
@@ -682,10 +804,34 @@ $('userForm').addEventListener('submit', (e) => {
   e.target.reset();
 });
 
-// Init
-state.data = migrateData(state.data);
-persist();
-if (state.currentUser) showApp(); else showAuth();
-setAuthTab('login');
-renderAll();
-setSection('dashboard');
+$('searchQuery').addEventListener('input', (e) => {
+  state.search.query = e.target.value;
+  renderIndexes();
+});
+$('searchTown').addEventListener('input', (e) => {
+  state.search.town = e.target.value;
+  renderIndexes();
+});
+$('searchParish').addEventListener('change', (e) => {
+  state.search.parishId = e.target.value;
+  renderIndexes();
+});
+$('clearSearch').addEventListener('click', () => {
+  state.search = { query: '', parishId: '', town: '' };
+  $('searchQuery').value = '';
+  $('searchTown').value = '';
+  $('searchParish').value = '';
+  renderIndexes();
+});
+
+function init() {
+  state.data = migrateData(state.data);
+  persist();
+  if (state.currentUser) showApp(); else showAuth();
+  setAuthTab('login');
+  renderAll();
+  renderIndexFormMode();
+  setSection('dashboard');
+}
+
+init();
