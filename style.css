@@ -181,7 +181,7 @@ button:active,.btn:active{transform:translateY(0)}
 @media (max-width:1080px){
   main{grid-template-columns:1fr}
   aside{border-right:none;border-bottom:1px solid rgba(255,255,255,.5)}
-  .grid,.stats,.auth-shell{grid-template-columns:1fr}
+  .grid,.stats,.auth-shell,.search-grid{grid-template-columns:1fr}
   .row{grid-template-columns:1fr 1fr}
   .row.head{display:none}
 }
@@ -192,3 +192,29 @@ button:active,.btn:active{transform:translateY(0)}
   .stats{grid-template-columns:1fr 1fr}
   .row{grid-template-columns:1fr}
 }
+
+
+.search-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+.search-actions{
+  display:flex;
+  align-items:flex-end;
+  gap:10px;
+  grid-column:1/-1;
+  flex-wrap:wrap;
+}
+#indexModeLabel{
+  font-weight:700;
+  color:var(--accent);
+}
+.row .actions .secondary,
+.row .actions .danger,
+.row .actions .ghost{
+  padding:9px 12px;
+  border-radius:12px;
+  font-size:13px;
+}
+
